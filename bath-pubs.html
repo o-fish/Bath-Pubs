@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BATH.PUB</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#181b22; --border:#2a2e38; --text:#eef0f3;
+    --muted:#8b91a0; --accent:#d4a13b; --done:#3c9d5e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:Georgia, 'Times New Roman', serif;
+    background:var(--bg); color:var(--text); padding:24px 16px 80px;
+  }
+  .wrap{max-width:760px; margin:0 auto;}
+  h1{
+    font-size:2.6rem; letter-spacing:2px; margin:0 0 4px; text-align:center;
+    font-family:'Trebuchet MS', sans-serif; font-weight:800;
+  }
+  h1 span{color:var(--accent);}
+  .sub{text-align:center; color:var(--muted); margin-bottom:24px; font-style:italic;}
+  .stats{
+    display:flex; justify-content:center; align-items:center; gap:14px;
+    margin-bottom:18px; font-family:'Trebuchet MS', sans-serif;
+  }
+  .stats .count{font-size:1.4rem; font-weight:700; color:var(--accent);}
+  .bar{
+    height:8px; background:var(--border); border-radius:6px; overflow:hidden;
+    margin-bottom:24px;
+  }
+  .bar-fill{height:100%; background:var(--done); width:0%; transition:width .3s;}
+  .controls{
+    display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;
+  }
+  input[type=text]{
+    flex:1; min-width:160px; padding:10px 12px; border-radius:8px;
+    border:1px solid var(--border); background:var(--card); color:var(--text);
+    font-family:'Trebuchet MS', sans-serif; font-size:0.95rem;
+  }
+  select{
+    padding:10px 12px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card); color:var(--text); font-family:'Trebuchet MS', sans-serif;
+  }
+  .list{display:flex; flex-direction:column; gap:10px;}
+  .pub{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; display:flex; align-items:flex-start; gap:14px;
+    cursor:pointer; transition:border-color .15s, opacity .15s;
+  }
+  .pub:hover{border-color:var(--accent);}
+  .pub.done{opacity:0.55;}
+  .check{
+    width:26px; height:26px; border-radius:50%; border:2px solid var(--muted);
+    flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center;
+    font-size:14px; transition:all .15s;
+  }
+  .pub.done .check{background:var(--done); border-color:var(--done); color:#0f1115;}
+  .pname{font-size:1.15rem; font-weight:700; font-family:'Trebuchet MS', sans-serif;}
+  .pub.done .pname{text-decoration:line-through;}
+  .paddr{color:var(--muted); font-size:0.85rem; margin-top:2px;}
+  .ptype{color:var(--accent); font-size:0.78rem; margin-top:4px; font-family:'Trebuchet MS', sans-serif;}
+  .footer{text-align:center; color:var(--muted); font-size:0.8rem; margin-top:30px;}
+  .reset-btn{
+    background:none; border:1px solid var(--border); color:var(--muted);
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-family:'Trebuchet MS', sans-serif;
+  }
+  .reset-btn:hover{border-color:#c0392b; color:#c0392b;}
+  .loading{text-align:center; color:var(--muted); padding:40px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>BATH<span>.</span>PUB</h1>
+  <div class="sub">Tick off every pub in Bath you've supped a pint in.</div>
+
+  <div class="stats">
+    <span class="count" id="countLabel">0 / 0</span>
+    <span>visited</span>
+  </div>
+  <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search pubs...">
+    <select id="filter">
+      <option value="all">All</option>
+      <option value="visited">Visited</option>
+      <option value="todo">Not yet</option>
+    </select>
+    <button class="reset-btn" id="resetBtn">Reset all</button>
+  </div>
+
+  <div id="list" class="list">
+    <div class="loading">Loading pubs...</div>
+  </div>
+
+  <div class="footer">Tap a pub to mark it visited. Your progress is saved automatically.</div>
+</div>
+
+<script>
+const PUBS = [
+  {id:"raven", name:"The Raven", addr:"7 Queen St, BA1 1HE", note:"Famous for meat pies"},
+  {id:"hallwoodhouse", name:"Hall & Woodhouse", addr:"1 Old King St, BA1 2JW", note:"Multi-floor, roof terrace"},
+  {id:"boathouse", name:"The Boathouse", addr:"Newbridge Rd, BA1 3NB", note:"By the river"},
+  {id:"boater", name:"The Boater", addr:"9 Argyle St, BA2 4BQ", note:"Riverside beer garden"},
+  {id:"marlborough", name:"The Marlborough Tavern", addr:"35 Marlborough Buildings, BA1 2LY", note:"Gastropub, near Royal Crescent"},
+  {id:"locksbrook", name:"The Locksbrook Inn", addr:"103 Locksbrook Rd, BA1 3EN", note:"Canal-side, cosy fireplaces"},
+  {id:"huntsman", name:"The Huntsman", addr:"1 Terrace Walk, BA1 1LJ", note:"Traditional, city centre"},
+  {id:"architect", name:"The Architect", addr:"The Empire, Orange Grove, BA1 1LP", note:"Dog friendly, riverside"},
+  {id:"crystalpalace", name:"The Crystal Palace", addr:"10-11 Abbey Grn, BA1 1NW", note:"CAMRA Good Beer Guide"},
+  {id:"williamstable", name:"William's Table Pub & Kitchen", addr:"36 Thomas St, BA1 5NN", note:"Historic, top-rated food"},
+  {id:"boom", name:"Boom Battle Bar", addr:"Kingsmead Leisure Complex, BA1 2BX", note:"Axe throwing & games bar"},
+  {id:"oldgreentree", name:"The Old Green Tree", addr:"12 Green St, BA1 2JZ", note:"Tiny wood-panelled classic"},
+  {id:"hideout", name:"The Hideout", addr:"1 Lilliput Court, BA1 1ND", note:"Whisky-focused cocktail bar"},
+  {id:"cider", name:"Bath Cider House", addr:"7 Bladud Buildings, BA1 5LS", note:"Cider flights, Sunday quiz"},
+  {id:"saracens", name:"Saracens Head", addr:"42 Broad St, BA1 5LP", note:"Oldest pub in Bath, 1713"},
+  {id:"bellinn", name:"The Bell Inn", addr:"103 Walcot St, BA1 5BW", note:"Community-owned, live music"},
+  {id:"packhorse", name:"The Packhorse", addr:"South Stoke, BA2 7DU", note:"Village pub, stunning garden"},
+  {id:"salamander", name:"The Salamander", addr:"3 John St, BA1 2JL", note:"Bath Ales pub, 2 floors"},
+  {id:"canon", name:"The Canon", addr:"1 Barton Street, BA1 1HQ", note:"Situated in the heart of Bath, The Canon is a vibrant and lively pub."},
+  {id:"grapes", name:"The Grapes", addr:"14 Westgate Street, BA1 1EQ", note:"Housed in one of the city's few remaining Elizabethan townhouses."},
+  {id:"abbey", name:"Abbey Ales", addr:"Camden Row, BA1 5LB", note:""},
+  {id:"allbar", name:"All Bar One", addr:"11/12 High Street, BA1 5AQ", note:""},
+  {id:"lion", name:"Coeur de Lion", addr:"17 Northumberland Place, BA1 5AR", note:"Bath's smallest pub"},
+  {id:"flans", name:"Flan O'Briens", addr:"21 Westgate Street, BA1 1EP", note:""},
+  {id:"garrickshead", name:"Garrick's Head Pub & Dining Room", addr:"7 & 8 St Johns Place, BA1 1ET", note:""},
+  {id:"hobgoblin", name:"Hobgoblin", addr:"47 St James's Parade, BA1 1UQ", note:""},
+  {id:"kingwilliam", name:"King William Pub & Dining Rooms", addr:"36 Thomas Street, BA1 5NN", note:""},
+  {id:"lamblion", name:"Lamb & Lion", addr:"15 Lower Borough Walls, BA1 1QU", note:""},
+  {id:"oakhillinn", name:"Oakhill Inn", addr:"Fosse Road, Oakhill, Nr Bath, BA3 5HU", note:""},
+  {id:"ringobells", name:"Ring O Bells", addr:"10 Widcombe Parade, BA2 4JT", note:""},
+  {id:"samwellers", name:"Sam Wellers", addr:"13-14 Upper Borough Walls, BA1 1RH", note:""},
+  {id:"alehouse", name:"The Ale House", addr:"1 York Street, BA1 1NG", note:""},
+  {id:"assemblyinn", name:"The Assembly Inn", addr:"17 Alfred Street, BA1 2QU", note:""},
+  {id:"barleymow", name:"The Barley Mow", addr:"32 Bathwick Street, BA2 6NZ", note:""},
+  {id:"bathbrewhouse", name:"The Bath Brew House", addr:"14 James St W, BA1 2BX", note:""},
+  {id:"thebear", name:"The Bear", addr:"6-10 Wellsway, BA2 3AQ", note:""},
+  {id:"chequers", name:"The Chequers", addr:"50 Rivers Street, BA1 2QA", note:""},
+  {id:"coeurdelion", name:"The Coeur de Lion", addr:"17 Northumberland Place, BA1 5AR", note:""},
+  {id:"curfew", name:"The Curfew", addr:"11 Cleveland Place West, BA1 5DG", note:""},
+  {id:"foresterflower", name:"The Forester & Flower", addr:"172 Bradford Road, Combe Down, BA2 5BZ", note:""},
+  {id:"harehounds", name:"The Hare & Hounds", addr:"Lansdown Road, BA1 5TJ", note:""},
+  {id:"holcombeinn", name:"The Holcombe Inn", addr:"Stratton Road, Holcombe, BA3 5EB", note:""},
+  {id:"hoppole", name:"The Hop Pole", addr:"7 Albion Buildings, Upper Bristol Road, BA1 3AR", note:""},
+  {id:"kingofwessex", name:"The King Of Wessex", addr:"5-10 James Street West, BA1 2BX", note:"Spoons"},
+  {id:"moorfields", name:"The Moorfields", addr:"73 Third Ave, Oldfield Park, BA2 3NZ", note:""},
+  {id:"northeyarms", name:"The Northey Arms", addr:"Bath Road, Box, Nr Bath, SN13 8AE", note:""},
+  {id:"oldcrown", name:"The Old Crown", addr:"1 Crown Hill, BA1 4BP", note:""},
+  {id:"pigfiddle", name:"The Pig & Fiddle", addr:"2 Saracen Street, BA1 5BR", note:""},
+  {id:"risingsun", name:"The Rising Sun Inn", addr:"3-4 Grove Street, BA2 6PJ", note:""},
+  {id:"royaloak", name:"The Royal Oak Freehouse", addr:"Lower Bristol Road, BA2 3BW", note:""},
+  {id:"slugandlettuce", name:"The Slug & Lettuce", addr:"5-6 Edgar Buildings, George Street, BA1 2EE", note:""},
+  {id:"starinn", name:"The Star Inn", addr:"23 The Vineyards, Off the Paragon, BA1 5NA", note:""},
+  {id:"trinityinn", name:"The Trinity Inn", addr:"James Street West, BA1 2DA", note:""},
+  {id:"westgate", name:"The West Gate", addr:"38 Westgate Street, BA1 1EL", note:""},
+  {id:"wheatsheaf", name:"The Wheatsheaf", addr:"Combe Hay, Nr Bath, BA2 7EG", note:""},
+  {id:"victoriapub", name:"Victoria Pub & Kitchen", addr:"Upper Bristol Road, BA1 3AT", note:""},
+  {id:"wheelwrights", name:"Wheelwrights Arms", addr:"Church Lane, Monkton Combe, BA2 7HB", note:""},
+  {id:"whitehart", name:"White Hart Inn", addr:"Widcombe Hill, BA2 6AA", note:""},
+  {id:"post", name:"The Old Post Office", addr:"2 York Buildings, BA1 2EB", note:"Disco Spoons"}
+];
+
+PUBS.sort((a, b) => a.name.localeCompare(b.name));
+
+const STORAGE_KEY = "visited-pubs";
+let visited = {};
+
+async function loadVisited(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY);
+    visited = res ? JSON.parse(res.value) : {};
+  }catch(e){
+    visited = {};
+  }
+}
+
+async function saveVisited(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(visited));
+  }catch(e){
+    console.error("Save failed", e);
+  }
+}
+
+function render(){
+  const search = document.getElementById('search').value.toLowerCase();
+  const filter = document.getElementById('filter').value;
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  let visibleCount = 0;
+  PUBS.forEach(pub=>{
+    const isDone = !!visited[pub.id];
+    if(filter === 'visited' && !isDone) return;
+    if(filter === 'todo' && isDone) return;
+    if(search && !pub.name.toLowerCase().includes(search) && !pub.addr.toLowerCase().includes(search)) return;
+    visibleCount++;
+
+    const div = document.createElement('div');
+    div.className = 'pub' + (isDone ? ' done' : '');
+    div.innerHTML = `
+      <div class="check">${isDone ? '✓' : ''}</div>
+      <div>
+        <div class="pname">${pub.name}</div>
+        <div class="paddr">${pub.addr}</div>
+        <div class="ptype">${pub.note}</div>
+      </div>
+    `;
+    div.addEventListener('click', async ()=>{
+      visited[pub.id] = !visited[pub.id];
+      await saveVisited();
+      render();
+    });
+    list.appendChild(div);
+  });
+
+  if(visibleCount === 0){
+    list.innerHTML = '<div class="loading">No pubs match.</div>';
+  }
+
+  const total = PUBS.length;
+  const done = Object.values(visited).filter(Boolean).length;
+  document.getElementById('countLabel').textContent = `${done} / ${total}`;
+  document.getElementById('barFill').style.width = total ? `${(done/total)*100}%` : '0%';
+}
+
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('filter').addEventListener('change', render);
+document.getElementById('resetBtn').addEventListener('click', async ()=>{
+  if(confirm('Reset all ticked pubs?')){
+    visited = {};
+    await saveVisited();
+    render();
+  }
+});
+
+(async ()=>{
+  await loadVisited();
+  render();
+})();
+</script>
+</body>
+</html>
